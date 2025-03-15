@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Account Information</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+<div class="bg-white p-6 rounded-lg shadow-md w-full max-w-md text-center">
+  <h2 class="text-2xl font-semibold text-gray-800">👤 Account Information</h2>
+  <p class="text-gray-600 mt-2">Email: <span id="userEmail"></span></p>
+  <p class="text-gray-600 mt-2">Password (Hashed): <span id="userPassword"></span></p>
+  <button id="backToHome" class="bg-blue-600 text-white px-4 py-2 rounded-lg mt-6 hover:bg-blue-700 transition">Back</button>
+</div>
+
+<script>
+  document.getElementById("backToHome").addEventListener("click", () => {
+    window.location.href = "index.html";
+  });
+
+  // Fetch user details (Dummy Data for Now)
+  document.getElementById("userEmail").textContent = "test@example.com";
+  document.getElementById("userPassword").textContent = "********";
+</script>
+</body>
+</html>

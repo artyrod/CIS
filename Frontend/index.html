@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dental Office File Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --primary-color: #3b82f6;
+            --hover-color: #2563eb;
+            --light-bg: #f0f4ff;
+            --white: #ffffff;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-blue-100 min-h-screen flex flex-col">
+
+<!-- TOP NAVIGATION -->
+<nav class="w-full flex justify-between items-center bg-white shadow-md px-6 py-4">
+    <!-- Category Dropdown (Left) -->
+    <div class="relative">
+        <button id="categoryBtn" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+            Categories ▼
+        </button>
+        <div id="categoryDropdown" class="hidden absolute mt-2 bg-white border rounded shadow-lg w-48">
+            <button class="block w-full text-left px-4 py-2 hover:bg-gray-200" data-category="all">📂 All Files</button>
+            <button class="block w-full text-left px-4 py-2 hover:bg-gray-200" data-category="billing">📑 Billing</button>
+            <button class="block w-full text-left px-4 py-2 hover:bg-gray-200" data-category="patient">🏥 Patient Files</button>
+        </div>
+    </div>
+
+    <!-- Account Icon (Right) -->
+    <div class="relative">
+        <button id="accountBtn" class="bg-gray-200 px-4 py-2 rounded-full">
+            👤
+        </button>
+        <div id="accountDropdown" class="hidden absolute right-0 mt-2 bg-white border rounded shadow-lg w-40">
+            <button id="viewAccount" class="block w-full text-left px-4 py-2 hover:bg-gray-200">👤 View Account</button>
+            <button id="logoutBtn" class="block w-full text-left px-4 py-2 hover:bg-gray-200 text-red-600">🚪 Logout</button>
+        </div>
+    </div>
+</nav>
+
+<!-- FILE UPLOAD PAGE -->
+<div id="uploadPage" class="flex flex-col items-center py-10 w-full">
+    <h2 class="text-3xl font-semibold text-gray-800 mb-4">Upload & Manage Files</h2>
+
+    <div class="bg-white p-6 rounded-lg shadow-md w-3/4 max-w-lg text-center">
+        <input id="fileInput" type="file" accept=".pdf,.txt" class="border px-3 py-2 rounded-lg w-full mb-3">
+        <progress id="progressBar" value="0" max="100" class="hidden w-full h-3 bg-gray-300 rounded-lg"></progress>
+        <button id="uploadBtn" class="bg-blue-600 text-white px-6 py-2 rounded-lg w-full hover:bg-blue-700 transition">Upload File</button>
+    </div>
+
+    <div class="w-3/4 grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
+        <div class="bg-white p-4 rounded-lg shadow-lg">
+            <h3 class="text-xl font-bold flex items-center mb-2 text-blue-600">📑 Billing</h3>
+            <ul id="billingList" class="list-disc list-inside text-gray-700 space-y-1"></ul>
+        </div>
+        <div class="bg-white p-4 rounded-lg shadow-lg">
+            <h3 class="text-xl font-bold flex items-center mb-2 text-blue-600">🏥 Patient Files</h3>
+            <ul id="patientList" class="list-disc list-inside text-gray-700 space-y-1"></ul>
+        </div>
+    </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
