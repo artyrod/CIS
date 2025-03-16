@@ -1,128 +1,145 @@
 require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
-const bcrypt = require("bcryptjs");
+const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const { body, validationResult } = require("express-validator");
 const multer = require("multer");
 const { GridFSBucket } = require("mongodb");
 const cors = require("cors");
 const { Readable } = require("stream");
 
+const User = require("./models/User");
+
 const app = express();
 app.use(express.json());
-
-// ✅ Enable CORS
-app.use(cors({
-    origin: "*",
-    methods: ["GET", "POST", "DELETE"],
-    allowedHeaders: ["Content-Type", "Authorization"]
-}));
+app.use(cors());
 
 const PORT = process.env.PORT || 5002;
-const JWT_SECRET = process.env.JWT_SECRET || "mysecretkey";
 
-// ✅ Connect to MongoDB
 mongoose.connect(process.env.MONGO_URI, {
     useNewUrlParser: true,
-    useUnifiedTopology: true,
-    tls: true,
-    tlsAllowInvalidCertificates: true,
-    serverSelectionTimeoutMS: 5000
-});
+    useUnifiedTopology: true
+}).then(() => console.log("✅ MongoDB Connected"))
+    .catch(err => console.error("❌ MongoDB Connection Error:", err));
 
-// ✅ User Schema
-const UserSchema = new mongoose.Schema({
-    email: { type: String, unique: true, required: true },
-    password: { type: String, required: true }
-});
-const User = mongoose.model("User", UserSchema);
-
-// ✅ File Storage (GridFS)
 let gridFSBucket;
 mongoose.connection.once("open", () => {
     gridFSBucket = new GridFSBucket(mongoose.connection.db, { bucketName: "uploads" });
     console.log("✅ GridFS Ready");
 });
 
-// ✅ Configure Multer
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
-// ✅ Register a New User
-app.post("/api/register", [
-    body("email").isEmail(),
-    body("password").isLength({ min: 6 })
-], async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
-
+// ✅ Register
+app.post("/api/register", async (req, res) => {
     const { email, password } = req.body;
-    const hashedPassword = await bcrypt.hash(password, 10);
+    if (!email || !password) return res.status(400).json({ error: "Email and password required." });
 
     try {
-        const user = new User({ email, password: hashedPassword });
-        await user.save();
-        res.json({ message: "✅ User registered successfully!" });
-    } catch (err) {
-        res.status(400).json({ error: "❌ User already exists!" });
+        const existingUser = await User.findOne({ email });
+        if (existingUser) return res.status(400).json({ error: "User already exists." });
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+        await new User({ email, password: hashedPassword }).save();
+        res.status(201).json({ message: "User registered successfully." });
+    } catch (error) {
+        res.status(500).json({ error: "Server error." });
     }
 });
 
-// ✅ User Login (Returns JWT Token)
+// ✅ Login
 app.post("/api/login", async (req, res) => {
     const { email, password } = req.body;
-
     const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ error: "❌ Invalid credentials!" });
-
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(400).json({ error: "❌ Invalid credentials!" });
-
-    const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: "1h" });
+    if (!user || !(await bcrypt.compare(password, user.password))) {
+        return res.status(401).json({ error: "Invalid credentials." });
+    }
+    const token = jwt.sign({ id: user._id, email: user.email }, process.env.JWT_SECRET, { expiresIn: "1h" });
     res.json({ token });
 });
 
-// ✅ Middleware to Authenticate Requests
-const authenticateUser = (req, res, next) => {
-    const token = req.header("Authorization");
-    if (!token) return res.status(401).json({ error: "❌ Access denied!" });
-
-    try {
-        const decoded = jwt.verify(token.replace("Bearer ", ""), JWT_SECRET);
-        req.user = decoded;
-        next();
-    } catch {
-        res.status(401).json({ error: "❌ Invalid token!" });
+// ✅ File Upload with Category
+app.post("/api/upload", upload.single("file"), (req, res) => {
+    if (!req.file || !req.body.category) {
+        return res.status(400).json({ error: "File and category required." });
     }
-};
-
-// ✅ Protected Route (Requires Authentication)
-app.get("/api/protected", authenticateUser, (req, res) => {
-    res.json({ message: "🔒 Access granted to protected content!" });
-});
-
-// ✅ File Upload (Requires Authentication)
-app.post("/api/upload", authenticateUser, upload.single("file"), (req, res) => {
-    if (!req.file) return res.status(400).json({ error: "❌ No file uploaded." });
 
     const readableStream = new Readable();
     readableStream.push(req.file.buffer);
     readableStream.push(null);
 
     const uploadStream = gridFSBucket.openUploadStream(req.file.originalname, {
-        metadata: { contentType: req.file.mimetype }
+        metadata: { contentType: req.file.mimetype, category: req.body.category }
     });
 
     readableStream.pipe(uploadStream);
+
     uploadStream.on("finish", () => res.json({ file: { filename: req.file.originalname } }));
+    uploadStream.on("error", (err) => res.status(500).json({ error: "File upload failed.", details: err }));
 });
 
-// ✅ Get All Files
-app.get("/api/files", authenticateUser, async (req, res) => {
-    const files = await mongoose.connection.db.collection("uploads.files").find().toArray();
-    res.json(files);
+// ✅ Get All Uploaded Files
+app.get("/api/files", async (req, res) => {
+    try {
+        const files = await gridFSBucket.find().toArray();
+        res.json(files.map(file => ({
+            filename: file.filename,
+            id: file._id,
+            contentType: file.metadata?.contentType || "unknown",
+            category: file.metadata?.category || "Uncategorized"
+        })));
+    } catch (error) {
+        console.error("Error fetching files:", error);
+        res.status(500).json({ error: "Could not fetch files." });
+    }
 });
 
-// ✅ Start Server
+// ✅ Get Files by Category
+app.get("/api/files/:category", async (req, res) => {
+    try {
+        const category = req.params.category;
+        const files = await gridFSBucket.find({ "metadata.category": category }).toArray();
+        res.json(files.map(file => ({
+            filename: file.filename,
+            id: file._id,
+            contentType: file.metadata?.contentType || "unknown",
+            category: file.metadata?.category || "Uncategorized"
+        })));
+    } catch (error) {
+        console.error("Error fetching category files:", error);
+        res.status(500).json({ error: "Could not fetch files." });
+    }
+});
+
+// ✅ Delete a File
+app.delete("/api/file/:id", async (req, res) => {
+    try {
+        const fileId = new mongoose.Types.ObjectId(req.params.id);
+        await gridFSBucket.delete(fileId);
+        res.json({ message: "File deleted successfully." });
+    } catch (error) {
+        console.error("Error deleting file:", error);
+        res.status(500).json({ error: "File deletion failed." });
+    }
+});
+
+// ✅ Serve File Preview
+app.get("/api/file/:id", async (req, res) => {
+    try {
+        const fileId = new mongoose.Types.ObjectId(req.params.id);
+        const downloadStream = gridFSBucket.openDownloadStream(fileId);
+
+        downloadStream.on("error", (err) => {
+            console.error("Download Error:", err);
+            res.status(404).json({ error: "File not found." });
+        });
+
+        downloadStream.pipe(res);
+    } catch (error) {
+        console.error("Error fetching file:", error);
+        res.status(500).json({ error: "Server error." });
+    }
+});
+
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
