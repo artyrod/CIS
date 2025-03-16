@@ -22,7 +22,7 @@ document.addEventListener("DOMContentLoaded", function () {
         document.getElementById("registerSection").classList.remove("hidden");
     });
 
-    // ✅ Back to Login
+    // ✅ Back to Log in
     backToLogin.addEventListener("click", () => {
         document.getElementById("registerSection").classList.add("hidden");
         document.getElementById("loginSection").classList.remove("hidden");
