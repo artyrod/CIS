@@ -12,7 +12,49 @@ document.addEventListener("DOMContentLoaded", function () {
     const fileDisplay = document.getElementById("fileDisplay");
     const categoryBtn = document.getElementById("categoryBtn");
     const categoryDropdown = document.getElementById("categoryDropdown");
+    const showRegister = document.getElementById("showRegister");
+    const backToLogin = document.getElementById("backToLogin");
     let selectedCategory = "all";
+
+    // ✅ Show Register Form
+    showRegister.addEventListener("click", () => {
+        document.getElementById("loginSection").classList.add("hidden");
+        document.getElementById("registerSection").classList.remove("hidden");
+    });
+
+    // ✅ Back to Login
+    backToLogin.addEventListener("click", () => {
+        document.getElementById("registerSection").classList.add("hidden");
+        document.getElementById("loginSection").classList.remove("hidden");
+    });
+
+    // ✅ Handle Registration (With Code Requirement)
+    registerForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const email = document.getElementById("registerEmail").value;
+        const password = document.getElementById("registerPassword").value;
+        const registerCode = document.getElementById("registerCode").value;
+
+        try {
+            const response = await fetch(`${BACKEND_URL}/register`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email, password, registerCode })
+            });
+
+            const data = await response.json();
+            if (response.ok) {
+                alert("✅ Registration successful! Please log in.");
+                document.getElementById("registerSection").classList.add("hidden");
+                document.getElementById("loginSection").classList.remove("hidden");
+            } else {
+                alert(`❌ Registration failed: ${data.error}`);
+            }
+        } catch (error) {
+            console.error("❌ Registration error:", error);
+        }
+    });
 
     // ✅ Handle Login
     loginForm.addEventListener("submit", async (e) => {
@@ -33,7 +75,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 localStorage.setItem("token", data.token);
                 authPage.classList.add("hidden");
                 uploadPage.classList.remove("hidden");
-                loadFiles(); // Ensure files load after login
+                loadFiles();
             } else {
                 alert("❌ Invalid login credentials.");
             }
@@ -44,7 +86,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // ✅ Handle Category Dropdown Toggle
     categoryBtn.addEventListener("click", (event) => {
-        event.stopPropagation(); // Prevent immediate close
+        event.stopPropagation();
         categoryDropdown.classList.toggle("hidden");
     });
 
@@ -60,7 +102,7 @@ document.addEventListener("DOMContentLoaded", function () {
         if (event.target.dataset.category) {
             selectedCategory = event.target.dataset.category;
             categoryBtn.textContent = `Category: ${selectedCategory.charAt(0).toUpperCase() + selectedCategory.slice(1)}`;
-            loadFiles(); // Reload files based on selected category
+            loadFiles();
         }
     });
 
@@ -85,7 +127,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
             alert("✅ File uploaded successfully!");
             fileInput.value = "";
-            loadFiles(); // Refresh file list after upload
+            loadFiles();
         } catch (error) {
             console.error("❌ Upload error:", error);
         }
@@ -142,7 +184,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
             if (response.ok) {
                 alert("✅ File deleted successfully.");
-                loadFiles(); // Refresh file list after deletion
+                loadFiles();
             } else {
                 alert("❌ Failed to delete file.");
             }
@@ -151,5 +193,5 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     }
 
-    loadFiles(); // Load files on page load
+    loadFiles();
 });

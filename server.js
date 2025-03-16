@@ -15,6 +15,7 @@ app.use(express.json());
 app.use(cors());
 
 const PORT = process.env.PORT || 5002;
+const REGISTER_CODE = process.env.REGISTER_CODE || "DENTAL2025"; // Registration code
 
 mongoose.connect(process.env.MONGO_URI, {
     useNewUrlParser: true,
@@ -31,10 +32,17 @@ mongoose.connection.once("open", () => {
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
-// ✅ Register
+// ✅ Register (With Code Requirement)
 app.post("/api/register", async (req, res) => {
-    const { email, password } = req.body;
-    if (!email || !password) return res.status(400).json({ error: "Email and password required." });
+    const { email, password, registerCode } = req.body;
+
+    if (!email || !password || !registerCode) {
+        return res.status(400).json({ error: "Email, password, and registration code required." });
+    }
+
+    if (registerCode !== REGISTER_CODE) {
+        return res.status(403).json({ error: "Invalid registration code." });
+    }
 
     try {
         const existingUser = await User.findOne({ email });
