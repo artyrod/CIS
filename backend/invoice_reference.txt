@@ -1,0 +1,31 @@
+📄 Page 1 Text (First 300 chars):
+DENTAL INVOICE
+
+Bill From Bill To Invoice No.
+Name: Name:
+
+Company Name: Company Name: Invoice Date:
+Street Address: Street Address:
+
+City, ST ZIP Code: City, ST ZIP Code: Due Date:
+Phone: Phone:
+
+Terms and Conditions
+Thank you for your business. Please send payment within days of receiving this inv
+✅ Extracted text:
+DENTAL INVOICE
+
+Bill From Bill To Invoice No.
+Name: Name:
+
+Company Name: Company Name: Invoice Date:
+Street Address: Street Address:
+
+City, ST ZIP Code: City, ST ZIP Code: Due Date:
+Phone: Phone:
+
+Terms and Conditions
+Thank you for your business. Please send payment within days of receiving this invoice. There
+will be a % per on late invoices.
+
+B Page 1 of 2
