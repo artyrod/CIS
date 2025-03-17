@@ -7,11 +7,35 @@ const multer = require("multer");
 const { GridFSBucket } = require("mongodb");
 const cors = require("cors");
 const { Readable } = require("stream");
-const { exec } = require("child_process");
+const { exec, execSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 
 const User = require("../models/User");
+
+// --- NEW: Log Model for Logging User Actions ---
+const logSchema = new mongoose.Schema({
+    user: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    action: { type: String, enum: ["upload", "delete"], required: true },
+    fileName: { type: String, required: true },
+    timestamp: { type: Date, default: Date.now }
+});
+const Log = mongoose.model("Log", logSchema);
+
+// --- NEW: Helper to Extract User ID from JWT (if provided) ---
+function getUserFromToken(req) {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+        const token = authHeader.split(" ")[1];
+        try {
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            return decoded.id; // Assumes token payload includes the user id as "id"
+        } catch (err) {
+            console.error("JWT verification error:", err);
+        }
+    }
+    return null;
+}
 
 const app = express();
 app.use(express.json());
@@ -41,46 +65,29 @@ if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// ✅ Load reference invoice text for categorization (if available)
-const referencePDFPath = path.join(__dirname, "invoice_reference.pdf");
-const extractedReferenceTextPath = path.join(__dirname, "invoice_reference.txt");
+// ✅ Load and extract reference texts
+const referenceFiles = {
+    invoice: path.join(__dirname, "invoice_reference.pdf"),
+    patient: path.join(__dirname, "patient_reference.pdf")
+};
 
-// Extract text from reference PDF if it hasn't been extracted
-if (!fs.existsSync(extractedReferenceTextPath)) {
-    console.log(`📂 Extracting text from reference PDF: ${referencePDFPath}`);
-    const pythonPath = path.join(__dirname, "../myenv/bin/python3"); // Ensure correct Python path
-    exec(`${pythonPath} test/test.py "${referencePDFPath}"`, (error, stdout, stderr) => {
-    if (error) {
-        console.error("❌ Error extracting reference text:", stderr);
-        return;
+const extractedReferences = { invoice: "", patient: "" };
+
+function extractReferenceText(filePath) {
+    if (!fs.existsSync(filePath)) {
+        console.warn(`⚠️ Warning: Reference file not found: ${filePath}`);
+        return "";
     }
 
-    const extractedText = stdout.trim();
-    if (!extractedText) {
-        console.error("❌ No text extracted from reference PDF!");
-        return;
-    }
+    const pythonPath = path.join(__dirname, "../myenv/bin/python3"); // Ensure correct path
+    return execSync(`${pythonPath} test/test.py "${filePath}"`).toString().trim();
+}
 
-    fs.writeFileSync(extractedReferenceTextPath, extractedText, "utf-8");
-    console.log(`✅ Reference text extracted and saved. Length: ${extractedText.length}`);
-
-    // Reload reference text
-    invoiceReferenceText = fs.readFileSync(extractedReferenceTextPath, "utf-8");
-    console.log(`📏 Loaded Reference Text Length: ${invoiceReferenceText.length}`);
+// Extract text from both references
+Object.keys(referenceFiles).forEach((key) => {
+    extractedReferences[key] = extractReferenceText(referenceFiles[key]);
+    console.log(`✅ Loaded ${key} Reference Text Length: ${extractedReferences[key].length}`);
 });
-
-}
-
-// Load extracted reference text
-let invoiceReferenceText = "";
-if (fs.existsSync(extractedReferenceTextPath)) {
-    invoiceReferenceText = fs.readFileSync(extractedReferenceTextPath, "utf-8");
-    console.log(`📏 Loaded Reference Text Length: ${invoiceReferenceText.length}`);
-} else {
-    console.warn("⚠️ Warning: Reference text extraction failed.");
-}
-
-
 
 // ✅ Register (With Code Requirement)
 app.post("/api/register", async (req, res) => {
@@ -118,22 +125,17 @@ app.post("/api/login", async (req, res) => {
     res.json({ token });
 });
 
-// ✅ File Upload with Auto Categorization
+// ✅ File Upload with Auto Categorization (Logging Added)
 app.post("/api/upload", upload.single("file"), (req, res) => {
     if (!req.file) {
         return res.status(400).json({ error: "No file uploaded." });
     }
 
-    // ✅ Define `safeFilePath` before using it
     const tempFilePath = path.join(__dirname, "uploads", req.file.originalname);
-    const safeFilePath = path.resolve(tempFilePath); // Ensure correct file path
+    fs.writeFileSync(tempFilePath, req.file.buffer);
 
-    // ✅ Save file temporarily for extraction
-    fs.writeFileSync(safeFilePath, req.file.buffer);
-
-    // ✅ Use the correct Python path inside `myenv`
     const pythonPath = "/Users/arthurrodriguez/Desktop/CIS/myenv/bin/python3";
-    exec(`${pythonPath} "test/test.py" "${safeFilePath.replace(/ /g, "\\ ")}"`, (error, stdout, stderr) => {
+    exec(`${pythonPath} "test/test.py" "${tempFilePath.replace(/ /g, "\\ ")}"`, (error, stdout, stderr) => {
         if (error) {
             console.error("❌ Error extracting text:", stderr);
             return res.status(500).json({ error: "Text extraction failed." });
@@ -141,16 +143,19 @@ app.post("/api/upload", upload.single("file"), (req, res) => {
 
         const extractedText = stdout.trim();
         console.log("📄 Extracted Text:\n", extractedText);
-        console.log("📄 Reference Text:\n", invoiceReferenceText);
-        console.log("📏 Extracted Text Length:", extractedText.length);
-        console.log("📏 Reference Text Length:", invoiceReferenceText.length);
-        console.log("📄 Extracted Text:", extractedText.substring(0, 200)); // Show first 200 chars
 
-        // ✅ Auto-categorize based on extracted text
-        const similarity = compareText(invoiceReferenceText, extractedText);
-        let category = similarity > 0.7 ? "billing" : "uncategorized";
+        // ✅ Compare extracted text against both references
+        const invoiceSimilarity = compareText(extractedReferences.invoice, extractedText);
+        const patientSimilarity = compareText(extractedReferences.patient, extractedText);
 
-        console.log(`🔹 Similarity: ${similarity}, Assigned Category: ${category}`);
+        let category = "uncategorized";
+        if (invoiceSimilarity > 0.7) {
+            category = "billing";
+        } else if (patientSimilarity > 0.7) {
+            category = "patient";
+        }
+
+        console.log(`🔹 Similarity: Invoice(${invoiceSimilarity}), Patient(${patientSimilarity}), Assigned Category: ${category}`);
 
         // ✅ Store file in GridFS with metadata
         const readableStream = new Readable();
@@ -164,7 +169,17 @@ app.post("/api/upload", upload.single("file"), (req, res) => {
         readableStream.pipe(uploadStream);
 
         uploadStream.on("finish", () => {
-            fs.unlinkSync(safeFilePath); // ✅ Delete temp file
+            fs.unlinkSync(tempFilePath);
+
+            // --- NEW: Log the upload event ---
+            const userId = getUserFromToken(req); // Will be null if no token provided
+            const logEntry = new Log({
+                user: userId,
+                action: "upload",
+                fileName: req.file.originalname
+            });
+            logEntry.save().catch((logErr) => console.error("Logging error:", logErr));
+
             res.json({ message: "✅ File uploaded and categorized.", category });
         });
 
@@ -187,13 +202,7 @@ function compareText(text1, text2) {
 // ✅ Get All Uploaded Files
 app.get("/api/files", async (req, res) => {
     try {
-        const filesCursor = gridFSBucket.find();
-        const files = await filesCursor.toArray();
-
-        if (files.length === 0) {
-            return res.status(200).json([]);  // Return empty array instead of failing
-        }
-
+        const files = await gridFSBucket.find().toArray();
         res.json(files.map(file => ({
             filename: file.filename,
             id: file._id,
@@ -210,13 +219,7 @@ app.get("/api/files", async (req, res) => {
 app.get("/api/files/:category", async (req, res) => {
     try {
         const category = req.params.category;
-        const filesCursor = gridFSBucket.find({ "metadata.category": category });
-        const files = await filesCursor.toArray();
-
-        if (files.length === 0) {
-            return res.status(200).json([]);  // Return empty array instead of failing
-        }
-
+        const files = await gridFSBucket.find({ "metadata.category": category }).toArray();
         res.json(files.map(file => ({
             filename: file.filename,
             id: file._id,
@@ -229,11 +232,28 @@ app.get("/api/files/:category", async (req, res) => {
     }
 });
 
-// ✅ Delete a File
+// ✅ Delete a File (Logging Added)
 app.delete("/api/file/:id", async (req, res) => {
     try {
         const fileId = new mongoose.Types.ObjectId(req.params.id);
+        // (Optional) Retrieve file info to log its name
+        const files = await gridFSBucket.find({ _id: fileId }).toArray();
+        if (!files || files.length === 0) {
+            return res.status(404).json({ error: "File not found." });
+        }
+        const fileName = files[0].filename;
+
         await gridFSBucket.delete(fileId);
+
+        // --- NEW: Log the deletion event ---
+        const userId = getUserFromToken(req); // Will be null if no token provided
+        const logEntry = new Log({
+            user: userId,
+            action: "delete",
+            fileName: fileName
+        });
+        logEntry.save().catch((logErr) => console.error("Logging error:", logErr));
+
         res.json({ message: "File deleted successfully." });
     } catch (error) {
         console.error("Error deleting file:", error);
@@ -246,12 +266,6 @@ app.get("/api/file/:id", async (req, res) => {
     try {
         const fileId = new mongoose.Types.ObjectId(req.params.id);
         const downloadStream = gridFSBucket.openDownloadStream(fileId);
-
-        downloadStream.on("error", (err) => {
-            console.error("Download Error:", err);
-            res.status(404).json({ error: "File not found." });
-        });
-
         downloadStream.pipe(res);
     } catch (error) {
         console.error("Error fetching file:", error);

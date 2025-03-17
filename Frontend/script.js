@@ -3,6 +3,8 @@ const BACKEND_URL = "http://localhost:5002/api";
 document.addEventListener("DOMContentLoaded", function () {
     console.log("🔹 JavaScript Loaded Successfully!");
 
+    // References to elements
+    const navBar = document.getElementById("navBar");
     const authPage = document.getElementById("authPage");
     const uploadPage = document.getElementById("uploadPage");
     const loginForm = document.getElementById("loginForm");
@@ -15,6 +17,9 @@ document.addEventListener("DOMContentLoaded", function () {
     const showRegister = document.getElementById("showRegister");
     const backToLogin = document.getElementById("backToLogin");
     let selectedCategory = "all";
+
+    // Initially, when on the auth page, hide the nav bar.
+    navBar.classList.add("hidden");
 
     // ✅ Show Register Form
     showRegister.addEventListener("click", () => {
@@ -73,8 +78,11 @@ document.addEventListener("DOMContentLoaded", function () {
             const data = await response.json();
             if (data.token) {
                 localStorage.setItem("token", data.token);
+                // Hide the auth page and show the upload page
                 authPage.classList.add("hidden");
                 uploadPage.classList.remove("hidden");
+                // Now show the nav bar since the user is logged in
+                navBar.classList.remove("hidden");
                 loadFiles();
             } else {
                 alert("❌ Invalid login credentials.");
@@ -122,6 +130,9 @@ document.addEventListener("DOMContentLoaded", function () {
         try {
             await fetch(`${BACKEND_URL}/upload`, {
                 method: "POST",
+                headers: {
+                    "Authorization": "Bearer " + localStorage.getItem("token")
+                },
                 body: formData
             });
 
@@ -180,7 +191,12 @@ document.addEventListener("DOMContentLoaded", function () {
     // ✅ Handle File Deletion
     async function deleteFile(fileId) {
         try {
-            const response = await fetch(`${BACKEND_URL}/file/${fileId}`, { method: "DELETE" });
+            const response = await fetch(`${BACKEND_URL}/file/${fileId}`, {
+                method: "DELETE",
+                headers: {
+                    "Authorization": "Bearer " + localStorage.getItem("token")
+                }
+            });
 
             if (response.ok) {
                 alert("✅ File deleted successfully.");
@@ -192,6 +208,5 @@ document.addEventListener("DOMContentLoaded", function () {
             console.error("❌ Error deleting file:", error);
         }
     }
-
     loadFiles();
 });

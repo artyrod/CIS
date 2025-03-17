@@ -8,43 +8,47 @@
 </head>
 <body class="bg-gray-100 min-h-screen flex flex-col">
 
-<!-- TOP NAVIGATION -->
-<nav class="w-full flex justify-between items-center bg-white shadow-md px-6 py-4">
-    <div class="relative">
-        <button id="categoryBtn" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
-            Categories ▼
-        </button>
-        <div id="categoryDropdown" class="hidden absolute mt-2 bg-white border rounded shadow-lg w-48">
-            <button class="block w-full text-left px-4 py-2 hover:bg-gray-200" data-category="all">📂 All Files</button>
-            <button class="block w-full text-left px-4 py-2 hover:bg-gray-200" data-category="billing">📑 Billing</button>
-            <button class="block w-full text-left px-4 py-2 hover:bg-gray-200" data-category="patient">🏥 Patient Files</button>
+<!-- TOP NAVIGATION (only shown when logged in) -->
+<nav id="navBar" class="w-full bg-white shadow-md px-6 py-4">
+    <div class="grid grid-cols-3 items-center">
+        <!-- Left Section -->
+        <div class="relative">
+            <button id="categoryBtn" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+                All files ▼
+            </button>
+            <div id="categoryDropdown" class="hidden absolute mt-2 bg-white border rounded shadow-lg w-48">
+                <button class="block w-full text-left px-4 py-2 hover:bg-gray-200" data-category="all">📂 All Files</button>
+                <button class="block w-full text-left px-4 py-2 hover:bg-gray-200" data-category="billing">📑 Billing</button>
+                <button class="block w-full text-left px-4 py-2 hover:bg-gray-200" data-category="patient">🏥 Patient Files</button>
+            </div>
         </div>
-    </div>
-
-    <div class="relative">
-        <button id="accountBtn" class="bg-gray-200 px-4 py-2 rounded-full">👤</button>
-        <div id="accountDropdown" class="hidden absolute right-0 mt-2 bg-white border rounded shadow-lg w-40">
-            <button id="viewAccount" class="block w-full text-left px-4 py-2 hover:bg-gray-200">👤 View Account</button>
-            <button id="logoutBtn" class="block w-full text-left px-4 py-2 hover:bg-gray-200 text-red-600">🚪 Logout</button>
+        <!-- Center Section -->
+        <div class="text-center text-xl font-bold">
+            Kean Dentist
+        </div>
+        <!-- Right Section -->
+        <div class="relative flex justify-end">
+            <button id="accountBtn" class="bg-gray-200 px-4 py-2 rounded-full">👤</button>
+            <div id="accountDropdown" class="hidden absolute right-0 mt-2 bg-white border rounded shadow-lg w-40">
+                <button id="viewAccount" class="block w-full text-left px-4 py-2 hover:bg-gray-200">👤 View Account</button>
+                <button id="logoutBtn" class="block w-full text-left px-4 py-2 hover:bg-gray-200 text-red-600">🚪 Logout</button>
+            </div>
         </div>
     </div>
 </nav>
 
+
 <!-- LOGIN & REGISTRATION PAGE -->
 <div id="authPage" class="min-h-screen flex items-center justify-center w-full">
     <div class="bg-white p-8 rounded-lg shadow-lg w-full max-w-md text-center">
-        <h2 class="text-2xl font-semibold mb-4 text-gray-800">Welcome to File Manager</h2>
+        <h2 class="text-2xl font-semibold mb-4 text-gray-800">Welcome to Kean Dentist</h2>
 
         <!-- Login Form -->
         <div id="loginSection">
-            <p class="text-gray-500 mb-4 text-sm">Log in to manage your files.</p>
+            <p class="text-gray-500 mb-4 text-sm">Log in to access your files.</p>
             <form id="loginForm" class="space-y-3">
-                <label>
-                    <input type="email" placeholder="Email" class="w-full border px-3 py-2 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm" required>
-                </label>
-                <label>
-                    <input type="password" placeholder="Password" class="w-full border px-3 py-2 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm" required>
-                </label>
+                <label for="registerEmail"></label><input type="email" placeholder="Email" class="w-full border px-3 py-2 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm" required>
+                <label for="registerPassword"></label><input type="password" placeholder="Password" class="w-full border px-3 py-2 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm" required>
                 <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition text-sm">Login</button>
             </form>
             <p class="mt-3 text-sm">Don't have an account? <a href="#" id="showRegister" class="text-blue-600">Register here</a></p>
