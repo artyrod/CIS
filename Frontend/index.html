@@ -1,87 +1,248 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark transition-colors duration-300">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Dental Office File Manager</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
-</head>
-<body class="bg-gray-100 min-h-screen flex flex-col">
+    <!-- Set Tailwind configuration before loading the CDN -->
+    <script>
+        window.tailwind = {
+            config: {
+                darkMode: 'class'
+            }
+        };
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Account panel slide animation using right property */
+        .account-panel {
+            right: -16rem; /* Off-screen initially */
+            transition: right 0.5s ease-in-out;
+        }
+        .account-panel.open {
+            right: 0;
+        }
+        /* Category dropdown animation */
+        #categoryDropdown {
+            z-index: 100;
+            transform: scaleY(0);
+            opacity: 0;
+            transform-origin: top;
+            transition: transform 0.2s ease-out, opacity 0.2s ease-out;
+        }
+        #categoryDropdown.show {
+            transform: scaleY(1);
+            opacity: 1;
+        }
+        /* Welcome screen fade-out */
+        #goodbyeScreen {
+            transition: opacity 1s ease-out;
+        }
 
-<!-- TOP NAVIGATION (only shown when logged in) -->
-<nav id="navBar" class="w-full bg-white shadow-md px-6 py-4">
-    <div class="grid grid-cols-3 items-center">
-        <!-- Left Section -->
+
+        /* Welcome screen fade-out */
+        #welcomeScreen {
+            transition: opacity 1s ease-out;
+        }
+
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-100 min-h-screen flex flex-col transition-colors duration-300">
+<!-- Notification Container -->
+<div id="toast-container" class="fixed top-5 right-5 z-50 space-y-2"></div>
+
+<!-- WELCOME SCREEN (hidden by default) -->
+<div id="welcomeScreen" style="display: none;" class="fixed inset-0 bg-blue-600 flex items-center justify-center z-50">
+    <h1 class="text-5xl font-bold text-white">Welcome to Platinum Smile Dentist</h1>
+</div>
+
+<!-- GOODBYE SCREEN (hidden by default) -->
+<div id="goodbyeScreen" style="display: none;" class="fixed inset-0 bg-blue-600 flex items-center justify-center z-50">
+    <h1 class="text-5xl font-bold text-white">Goodbye!</h1>
+</div>
+
+<!-- NAVBAR -->
+<nav id="navBar" class="hidden w-full bg-white dark:bg-gray-800 shadow-md px-6 py-4 transition-colors duration-300">
+    <div class="flex items-center justify-between h-16">
+        <!-- Brand/Title -->
+        <h1 class="text-4xl font-bold text-gray-800 dark:text-gray-100">Platinum Smile Dentist</h1>
+        <!-- Account Dropdown Button -->
         <div class="relative">
-            <button id="categoryBtn" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
-                Category: All ▼
+            <button id="accountBtn" class="bg-gray-200 dark:bg-gray-700 px-4 py-2 rounded-full text-gray-700 dark:text-gray-200 transition">
+                👤
             </button>
-            <div id="categoryDropdown" class="hidden absolute mt-2 bg-white border rounded shadow-lg w-48">
-                <button class="block w-full text-left px-4 py-2 hover:bg-gray-200" data-category="all">📂 All Files</button>
-                <button class="block w-full text-left px-4 py-2 hover:bg-gray-200" data-category="billing">📑 Billing</button>
-                <button class="block w-full text-left px-4 py-2 hover:bg-gray-200" data-category="patient">🏥 Patient Files</button>
-            </div>
-        </div>
-        <!-- Center Section -->
-        <div class="text-center text-xl font-bold">
-            Kean Dentist
-        </div>
-        <!-- Right Section -->
-        <div class="relative flex justify-end">
-            <button id="accountBtn" class="bg-gray-200 px-4 py-2 rounded-full">👤</button>
-            <div id="accountDropdown" class="hidden absolute right-0 mt-2 bg-white border rounded shadow-lg w-40">
-                <button id="viewAccount" class="block w-full text-left px-4 py-2 hover:bg-gray-200">👤 View Account</button>
-                <button id="logoutBtn" class="block w-full text-left px-4 py-2 hover:bg-gray-200 text-red-600">🚪 Logout</button>
+            <div id="accountDropdown" class="hidden absolute right-0 mt-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded shadow-lg w-40">
+                <button id="viewAccount" class="block w-full text-left px-4 py-2 hover:bg-gray-200 dark:hover:bg-gray-600">👤 View Account</button>
+                <button id="logoutBtn" class="block w-full text-left px-4 py-2 hover:bg-gray-200 dark:hover:bg-gray-600 text-red-600 dark:text-red-400">🚪 Logout</button>
             </div>
         </div>
     </div>
 </nav>
 
+<!-- TOOLBAR ROW -->
+<div id="toolbar" class="hidden w-full bg-gray-100 dark:bg-gray-900 px-6 py-3 border-b border-gray-200 dark:border-gray-700 transition-colors duration-300">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+        <!-- Left: Category Dropdown & Sort Select -->
+        <div class="flex items-center space-x-6">
+            <!-- Category Dropdown -->
+            <div class="relative">
+                <button id="categoryBtn" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 dark:hover:bg-blue-500 transition">
+                    Category: All
+                </button>
+                <div id="categoryDropdown" class="hidden absolute mt-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded shadow-lg w-48">
+                    <button class="block w-full text-left px-4 py-2 hover:bg-gray-200 dark:hover:bg-gray-600" data-category="all">📂 All Files</button>
+                    <button class="block w-full text-left px-4 py-2 hover:bg-gray-200 dark:hover:bg-gray-600" data-category="billing">📑 Billing</button>
+                    <button class="block w-full text-left px-4 py-2 hover:bg-gray-200 dark:hover:bg-gray-600" data-category="patient">🏥 Patient</button>
+                </div>
+            </div>
+            <!-- Sort Select with Dark Mode Variants -->
+            <div>
+                <select id="sortSelect" class="border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 rounded-lg px-2 py-1 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="name">Sort by Name</option>
+                    <option value="date">Sort by Date Uploaded</option>
+                </select>
+            </div>
+        </div>
+        <!-- Right: Upload Button -->
+        <div class="mt-3 sm:mt-0">
+            <button id="uploadBtn" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+                Upload Files
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- MAIN CONTENT: FILE DISPLAY TABLE -->
+<div id="uploadPage" class="hidden flex flex-col items-center py-10 w-full bg-gray-100 dark:bg-gray-900 transition-colors">
+    <div class="max-w-5xl w-full px-6">
+        <div class="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
+            <table class="min-w-full text-sm">
+                <!-- Table Header -->
+                <thead class="bg-gray-200 dark:bg-gray-700 border-b border-gray-300 dark:border-gray-600">
+                <tr>
+                    <th class="px-4 py-3 text-left w-1/2">File Name</th>
+                    <th class="px-4 py-3 text-left w-1/4">Date &amp; Time</th>
+                    <th class="px-4 py-3 text-right w-1/4">Actions</th>
+                </tr>
+                </thead>
+                <!-- Table Body -->
+                <tbody id="fileDisplayBody" class="">
+                <!-- Example Row -->
+                <tr class="">
+                    <td class="px-4 py-3 truncate">ExampleFile.pdf</td>
+                    <td class="px-4 py-3">2025-04-05 23:47</td>
+                    <td class="px-4 py-3 text-right space-x-2">
+                        <button class="rename-btn text-blue-600 hover:underline" data-id="1" data-filename="ExampleFile.pdf">Rename</button>
+                        <button class="delete-btn text-red-600 hover:underline" data-id="1">Delete</button>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ACCOUNT PANEL (Sliding in from the right) -->
+<div id="accountPanel" class="account-panel fixed top-0 h-full w-64 bg-white dark:bg-gray-800 shadow-lg z-50 transition-all duration-500">
+    <div class="p-4 border-b flex items-center justify-between">
+        <button id="closeAccountPanel" class="bg-white dark:bg-gray-700 border rounded-full p-2 shadow-md">&larr;</button>
+        <h2 class="text-lg font-bold flex-1 text-center text-gray-800 dark:text-gray-100">Account</h2>
+        <div class="w-10"></div>
+    </div>
+    <div class="p-4 space-y-4">
+        <button id="resetPasswordBtn" class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 dark:hover:bg-blue-500 transition">Reset Password</button>
+        <button id="auditBtn" class="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 dark:hover:bg-green-500 transition">Upload Audit</button>
+        <!-- NEW Failed Uploads button -->
+        <button id="failedUploadsBtn" class="w-full bg-yellow-600 text-white py-2 rounded-lg hover:bg-yellow-700 dark:hover:bg-yellow-500 transition">Failed Uploads</button>
+        <button id="logoutPanelBtn" class="w-full bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 dark:hover:bg-red-500 transition">Logout</button>
+    </div>
+</div>
+
+
+<!-- RESET PASSWORD MODAL -->
+<div id="resetPasswordModal" class="modal fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 hidden z-50">
+    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg w-80 transition-colors">
+        <h2 class="text-xl font-bold mb-4 text-gray-800 dark:text-gray-100">Reset Password</h2>
+        <form id="resetPasswordForm" class="space-y-4">
+            <input type="password" id="oldPassword" placeholder="Old Password" class="w-full border border-gray-300 dark:border-gray-700 px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-gray-100" required>
+            <input type="password" id="newPassword" placeholder="New Password" class="w-full border border-gray-300 dark:border-gray-700 px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-gray-100" required>
+            <input type="password" id="confirmNewPassword" placeholder="Confirm New Password" class="w-full border border-gray-300 dark:border-gray-700 px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-gray-100" required>
+            <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 dark:hover:bg-blue-500 transition">Submit</button>
+        </form>
+        <button id="closeResetModal" class="mt-4 w-full text-center text-blue-600 dark:text-blue-400 hover:underline">Cancel</button>
+    </div>
+</div>
+
+<!-- UPLOAD AUDIT MODAL -->
+<div id="auditModal" class="modal fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 hidden z-50">
+    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg w-1/2 max-w-md max-h-full overflow-y-auto relative transition-colors">
+        <button id="closeAuditModalTop" class="absolute top-2 right-2 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100">✖</button>
+        <h2 class="text-xl font-bold mb-4 text-gray-800 dark:text-gray-100">Upload Audit</h2>
+        <div id="auditContent" class="space-y-2"></div>
+        <button id="closeAuditModal" class="mt-4 w-full text-center text-blue-600 dark:text-blue-400 hover:underline">Close</button>
+    </div>
+</div>
 
 <!-- LOGIN & REGISTRATION PAGE -->
-<div id="authPage" class="min-h-screen flex items-center justify-center w-full">
-    <div class="bg-white p-8 rounded-lg shadow-lg w-full max-w-md text-center">
-        <h2 class="text-2xl font-semibold mb-4 text-gray-800">Welcome to Kean Dentist</h2>
-
+<div id="authPage" class="min-h-screen flex items-center justify-center w-full bg-gray-100 dark:bg-gray-900 transition-colors">
+    <div class="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-lg w-full max-w-md text-center transition-colors">
+        <h2 class="text-2xl font-semibold mb-4 text-gray-800 dark:text-gray-100">Welcome to Platinum Smile Dentist</h2>
         <!-- Login Form -->
         <div id="loginSection">
-            <p class="text-gray-500 mb-4 text-sm">Log in to access your files.</p>
+            <p class="text-gray-500 dark:text-gray-300 mb-4 text-sm">Log in to access your files.</p>
             <form id="loginForm" class="space-y-3">
-                <label for="registerEmail"></label><input type="email" placeholder="Email" class="w-full border px-3 py-2 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm" required>
-                <label for="registerPassword"></label><input type="password" placeholder="Password" class="w-full border px-3 py-2 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm" required>
-                <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition text-sm">Login</button>
+                <input type="email" placeholder="Email" class="w-full border border-gray-300 dark:border-gray-700 px-3 py-2 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm bg-gray-50 dark:bg-gray-700 dark:text-gray-100" required>
+                <input type="password" placeholder="Password" class="w-full border border-gray-300 dark:border-gray-700 px-3 py-2 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm bg-gray-50 dark:bg-gray-700 dark:text-gray-100" required>
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white py-2 rounded-lg transition text-sm">Login</button>
             </form>
-            <p class="mt-3 text-sm">Don't have an account? <a href="#" id="showRegister" class="text-blue-600">Register here</a></p>
+            <p class="mt-3 text-sm text-gray-600 dark:text-gray-300">
+                Don't have an account?
+                <a href="#" id="showRegister" class="text-blue-600 dark:text-blue-400 hover:underline">Register here</a>
+            </p>
         </div>
-
-        <!-- Registration Form (Now Includes Registration Code) -->
+        <!-- Registration Form -->
         <div id="registerSection" class="hidden">
-            <h2 class="text-lg font-semibold text-gray-800 mb-4">Create an Account</h2>
+            <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">Create an Account</h2>
             <form id="registerForm" class="space-y-3">
-                <label for="registerEmail"></label><input type="email" id="registerEmail" placeholder="Email" class="w-full border px-3 py-2 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm" required>
-                <label for="registerPassword"></label><input type="password" id="registerPassword" placeholder="Password (6+ chars)" class="w-full border px-3 py-2 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm" required>
-                <label for="registerCode"></label><input type="text" id="registerCode" placeholder="Registration Code" class="w-full border px-3 py-2 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm" required>
-                <button type="submit" class="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition text-sm">Register</button>
+                <input type="email" id="registerEmail" placeholder="Email" class="w-full border border-gray-300 dark:border-gray-700 px-3 py-2 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm bg-gray-50 dark:bg-gray-700 dark:text-gray-100" required>
+                <input type="password" id="registerPassword" placeholder="Password (6+ chars)" class="w-full border border-gray-300 dark:border-gray-700 px-3 py-2 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm bg-gray-50 dark:bg-gray-700 dark:text-gray-100" required>
+                <input type="password" id="registerCode" placeholder="Registration Code" class="w-full border border-gray-300 dark:border-gray-700 px-3 py-2 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm bg-gray-50 dark:bg-gray-700 dark:text-gray-100" required>
+                <button type="submit" class="w-full bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 text-white py-2 rounded-lg transition text-sm">Register</button>
             </form>
-            <button id="backToLogin" class="mt-3 text-blue-600 text-sm">Back to Login</button>
+            <button id="backToLogin" class="mt-3 text-blue-600 dark:text-blue-400 text-sm hover:underline">Back to Login</button>
         </div>
     </div>
 </div>
 
-<!-- FILE UPLOAD PAGE -->
-<div id="uploadPage" class="hidden flex flex-col items-center py-10 w-full">
-    <h2 class="text-2xl font-semibold text-gray-800 mb-4">Upload & Manage Files</h2>
-
-    <div class="bg-white p-6 rounded-lg shadow-md w-3/4 max-w-lg text-center">
-        <input id="fileInput" type="file" accept=".pdf,.txt,.png,.jpg" class="border px-3 py-2 rounded-lg w-full mb-3 text-sm">
-        <button id="uploadBtn" class="bg-blue-600 text-white px-6 py-2 rounded-lg w-full hover:bg-blue-700 transition text-sm">Upload File</button>
+<!-- UPLOAD MODAL (Initially Hidden) -->
+<div id="uploadModal" class="modal fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 hidden z-50">
+    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg w-80 transition-colors">
+        <h2 class="text-xl font-bold mb-4 text-gray-800 dark:text-gray-100">Upload Files</h2>
+        <input id="modalFileInput" type="file" accept=".pdf,.txt,.png,.jpg" multiple class="border border-gray-300 dark:border-gray-700 px-3 py-2 rounded-lg w-full mb-3 text-sm bg-gray-50 dark:bg-gray-700 dark:text-gray-100">
+        <input id="modalScheduledTime" type="datetime-local" class="border border-gray-300 dark:border-gray-700 px-3 py-2 rounded-lg w-full mb-3 text-sm bg-gray-50 dark:bg-gray-700 dark:text-gray-100" placeholder="Schedule Upload (optional)">
+        <button id="modalUploadBtn" class="w-full bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white py-2 rounded-lg transition text-sm">
+            Upload
+        </button>
+        <button id="closeUploadModal" class="mt-4 w-full text-center text-blue-600 dark:text-blue-400 hover:underline">
+            Cancel
+        </button>
     </div>
 </div>
 
-<!-- FILE DISPLAY SECTION -->
-<div id="fileDisplay" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 p-6">
+<!-- FAILED UPLOADS MODAL -->
+<div id="failedUploadsModal" class="modal fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 hidden z-50">
+    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg w-1/2 max-w-md max-h-full overflow-y-auto relative transition-colors">
+        <button id="closeFailedUploadsModal" class="absolute top-2 right-2 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100">✖</button>
+        <h2 class="text-xl font-bold mb-4 text-gray-800 dark:text-gray-100">Failed Uploads</h2>
+        <div id="failedUploadsContent" class="space-y-2">
+            <!-- This is where the list of failed uploads will be injected via JavaScript. -->
+            <!-- For each failed upload record, you might include file name, error, timestamp, and a retry button. -->
+        </div>
+        <button id="refreshFailedUploads" class="mt-4 w-full text-center text-blue-600 dark:text-blue-400 hover:underline">Refresh</button>
+    </div>
 </div>
 
+<!-- Include your script file -->
 <script src="./script.js"></script>
 </body>
 </html>
